@@ -362,6 +362,9 @@
 
     .pin-actions { display: flex; gap: 6px; }
 
+    .pin-badge.src-ebay  { color: #e1a93a; border-color: #7a5a10; }
+    .pin-badge.src-mercari { color: #e84393; border-color: #8a1450; }
+
     /* ── Load More ── */
     .load-more-wrap {
       text-align: center;
@@ -555,6 +558,12 @@
     <div class="filter-chip" data-filter-cat="holiday">Holiday</div>
   </div>
 
+  <div class="filter-bar" id="source-bar" style="margin-top:-12px;">
+    <div class="filter-chip active" data-source="all">All Sources</div>
+    <div class="filter-chip" data-source="ebay">eBay</div>
+    <div class="filter-chip" data-source="mercari">Mercari</div>
+  </div>
+
   <div class="controls-row">
     <label for="sort-select">Sort:</label>
     <select id="sort-select" onchange="onSortChange()">
@@ -629,6 +638,7 @@
 // ── State ──
 let activeFilterCat = '';
 let activeFilterTag = '';
+let activeSource = '';
 let searchQuery = '';
 let activeSort = 'scraped_at';
 let activePriceMin = null;
@@ -677,6 +687,7 @@ function buildParams(overrideOffset) {
   if (searchQuery) params.set('q', searchQuery);
   if (activeFilterCat) params.set('category', activeFilterCat);
   if (activeFilterTag) params.set('tag', activeFilterTag);
+  if (activeSource) params.set('source', activeSource);
   if (activePriceMin != null) params.set('min_price', activePriceMin);
   if (activePriceMax != null) params.set('max_price', activePriceMax);
   return params;
@@ -765,6 +776,9 @@ function renderPins(pins, append) {
   const html = pins.map((p, i) => {
     const idx = startIdx + i;
     const badge = badgeFor(p);
+    const srcBadge = p.source && p.source !== 'ebay'
+      ? `<span class="pin-badge src-${escHtml(p.source)}">${escHtml(p.source.charAt(0).toUpperCase() + p.source.slice(1))}</span>`
+      : '';
     const emoji = pinEmoji(p);
     const hasImg = !!p.image_url;
     const isBest = isBestValueCard(p);
@@ -782,6 +796,7 @@ function renderPins(pins, append) {
           ? `<img src="${escHtmlAttr(p.image_url)}" alt="${escHtmlAttr(p.title)}" style="width:100%;height:100%;object-fit:contain;padding:8px;" loading="lazy" onerror="this.style.display='none'">`
           : escHtml(emoji || '📌')}
         ${badge ? `<span class="pin-badge ${badge.cls}">${badge.label}</span>` : ''}
+        ${srcBadge}
       </div>
       <div class="pin-body">
         <div class="pin-name">${escHtml(p.title)}</div>
@@ -810,6 +825,16 @@ function escHtml(s) {
 function escHtmlAttr(s) {
   return String(s || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+// ── Source filter ──
+document.getElementById('source-bar').addEventListener('click', e => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  document.querySelectorAll('#source-bar .filter-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  activeSource = chip.dataset.source === 'all' ? '' : chip.dataset.source;
+  fetchListings();
+});
 
 // ── Filters ──
 document.getElementById('filter-bar').addEventListener('click', e => {
@@ -906,6 +931,7 @@ function openPin(idx) {
     ${qtyRow}
     <div class="modal-detail-row"><span class="modal-detail-label">Condition</span><span class="modal-detail-value">${escHtml(p.condition || '–')}</span></div>
     <div class="modal-detail-row"><span class="modal-detail-label">Category</span><span class="modal-detail-value">${escHtml(p.category || '–')}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-label">Source</span><span class="modal-detail-value">${escHtml((p.source || 'ebay').charAt(0).toUpperCase() + (p.source || 'ebay').slice(1))}</span></div>
     ${freeShipping}
     ${p.seller ? `<div class="modal-detail-row"><span class="modal-detail-label">Seller</span><span class="modal-detail-value">${escHtml(p.seller)}</span></div>` : ''}
     ${badge ? `<div class="modal-detail-row"><span class="modal-detail-label">Status</span><span class="modal-detail-value" style="color:var(--gold)">${badge.label}</span></div>` : ''}
