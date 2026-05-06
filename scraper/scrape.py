@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Disney pin scraper — eBay + Mercari
+Disney pin scraper — eBay + Amazon
 Uses crawl4ai container on :11235
 Inserts/updates listings in /opt/pintrader/db/pins.db
 """
@@ -42,6 +42,23 @@ SEARCH_TERMS = [
     # Park exclusives
     "disney park exclusive pin 2025",
     "disney park exclusive pin 2026",
+]
+
+# Amazon-specific terms — lean into official/licensed keyword patterns
+# that work well with Amazon's catalog
+AMAZON_SEARCH_TERMS = [
+    "disney trading pin official",
+    "disney enamel pin official",
+    "disney parks pin limited edition",
+    "disney pin set collector",
+    "disney pin trading starter set",
+    "disney villain enamel pin set",
+    "disney princess enamel pin",
+    "disney pixar enamel pin",
+    "disney star wars pin",
+    "disney marvel pin set",
+    "disney haunted mansion enamel pin",
+    "shopDisney pin",
 ]
 
 CATEGORY_RULES = [
@@ -249,100 +266,143 @@ def scrape_ebay(query: str) -> list:
 
 # ── Mercari ───────────────────────────────────────────────────────────────────
 
-def scrape_mercari(query: str) -> list:
-    url = f"https://www.mercari.com/search/?keyword={quote_plus(query)}&status=on_sale"
-    print(f"  [mercari] {query}", flush=True)
+def crawl_magic(url: str) -> dict:
+    """Crawl with magic/stealth mode — for sites that block basic headless crawls."""
+    payload = json.dumps({
+        "urls": [url],
+        "browser_config": {
+            "headless": True,
+            "user_agent_mode": "random",
+            "enable_stealth": True,
+            "viewport_width": 1280,
+            "viewport_height": 800,
+        },
+        "crawler_config": {
+            "magic": True,
+            "simulate_user": True,
+            "override_navigator": True,
+            "wait_until": "domcontentloaded",
+            "delay_before_return_html": 4.0,
+            "page_timeout": 45000,
+        },
+    }).encode()
+    req = Request(
+        f"{CRAWL4AI_URL}/crawl",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    with urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read())
+    if isinstance(data.get("results"), list) and data["results"]:
+        return {"success": True, "html": data["results"][0].get("html", "")}
+    return {"success": False, "html": "", "error": data.get("detail", "")}
+
+
+# Reject titles that are clearly non-official / fan-made / not a pin
+_NON_OFFICIAL = re.compile(
+    r'\b(inspired by|fan.?art|fan.?made|handmade|hand.made|hand.crafted|unofficial|'
+    r'cricut|svg|sublimation|3d.?print|bootleg|counterfeit|not disney|non.?disney|'
+    r'replica|knockoff|knock.off|pin back|pin backs|pin holder|pin keeper|'
+    r'replacement|backing card|locking back|rubber back|clutch back)\b', re.I
+)
+# Require at least one Disney/character signal — avoids completely generic enamel pins
+_DISNEY_SIGNAL = re.compile(
+    r'\b(disney|mickey|minnie|donald|goofy|pluto|tinker.?bell|stitch|lilo|dumbo|bambi|'
+    r'princess|cinderella|belle|ariel|rapunzel|moana|tiana|aurora|elsa|anna|frozen|'
+    r'villain|maleficent|ursula|jafar|scar|cruella|hades|gaston|'
+    r'pixar|woody|buzz|nemo|dory|wall.?e|incredibles|coco|ratatouille|'
+    r'star wars|marvel|avengers|spider.?man|iron man|thor|black panther|'
+    r'haunted mansion|pirates|space mountain|epcot|magic kingdom|disneyland|'
+    r'animal kingdom|galaxy.?s edge|mandalorian|grogu)\b', re.I
+)
+
+
+def scrape_amazon(query: str) -> list:
+    """Scrape Amazon search for official Disney pins."""
+    # Append 'pin' to ensure we get pins not other merch; language=en_US for USD prices
+    params = urlencode({"k": f"{query} pin", "language": "en_US", "currency": "USD"})
+    url = f"https://www.amazon.com/s?{params}"
+    print(f"  [amazon] {query}", flush=True)
 
     try:
-        result = crawl(url)
+        result = crawl_magic(url)
     except Exception as e:
         print(f"  ERROR: {e}", flush=True)
         return []
 
     if not result.get("success") or not result.get("html"):
+        err = result.get("error", "")
+        print(f"  Crawl failed: {err[:100]}", flush=True)
         return []
 
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(result["html"], "html.parser")
-
-    # Mercari renders item cards as <li> or <div> with data-testid or class patterns
-    # Try multiple selectors — Mercari's DOM changes occasionally
-    items = (
-        soup.select("li[data-testid='item-cell']") or
-        soup.select("div[data-testid='item-cell']") or
-        soup.select("[class*='SearchResults'] li") or
-        soup.select("[class*='items-box'] li") or
-        []
-    )
+    items = soup.select("[data-component-type='s-search-result'][data-asin]")
     print(f"  → {len(items)} raw items", flush=True)
 
     listings = []
     for item in items:
-        # Title: from aria-label, alt text, or heading
-        title = ""
-        title_el = (
-            item.select_one("[data-testid='item-name']") or
-            item.select_one("h3") or
-            item.select_one("[class*='itemName']") or
-            item.select_one("[class*='item-name']")
-        )
-        if title_el:
-            title = title_el.get_text(strip=True)
-        if not title:
-            img = item.select_one("img[alt]")
-            title = img.get("alt", "").strip() if img else ""
-        if not title:
-            continue
-        if not re.search(r'disney|pin', title, re.I):
+        asin = item.get("data-asin", "").strip()
+        if not asin:
             continue
 
-        # Link
-        link_el = item.select_one("a[href*='/item/']") or item.select_one("a[href]")
-        if not link_el:
+        # Title
+        title_el = item.select_one("h2 a span") or item.select_one("[class*='a-text-normal']")
+        title = title_el.get_text(strip=True) if title_el else ""
+        if not title:
             continue
-        href = link_el.get("href", "")
+
+        # Must be Disney-related and not custom/unofficial
+        if not _DISNEY_SIGNAL.search(title):
+            continue
+        if _NON_OFFICIAL.search(title):
+            continue
+        # Must actually be a pin (not a plush, shirt, book, etc.)
+        if not re.search(r'\b(pin|enamel|lapel|trading|badge|button)\b', title, re.I):
+            continue
+
+        # Price — .a-price-whole already includes the decimal point in some locales
+        price_whole_el = item.select_one(".a-price-whole")
+        price_frac_el = item.select_one(".a-price-fraction")
+        if price_whole_el:
+            whole = re.sub(r'[^\d]', '', price_whole_el.get_text())
+            frac = re.sub(r'[^\d]', '', price_frac_el.get_text()) if price_frac_el else "00"
+            try:
+                price = float(f"{whole}.{frac}")
+            except ValueError:
+                price = None
+        else:
+            offscreen = item.select_one(".a-price .a-offscreen")
+            price, _ = parse_price(offscreen.get_text(strip=True) if offscreen else "")
+
+        if not price or price > 500:
+            continue
+
+        # URL
+        link_el = item.select_one("h2 a")
+        href = link_el.get("href", "") if link_el else ""
         if href.startswith("/"):
-            href = "https://www.mercari.com" + href
-        source_url = href.split("?")[0]
-        if not source_url or "mercari.com" not in source_url:
-            continue
+            source_url = f"https://www.amazon.com/dp/{asin}"
+        else:
+            source_url = href.split("?")[0] if href else f"https://www.amazon.com/dp/{asin}"
 
         # Image
-        img = item.select_one("img")
-        image_url = None
-        if img:
-            image_url = img.get("src") or img.get("data-src") or img.get("data-lazy-src")
-            if image_url and ("placeholder" in image_url or "static" in image_url or len(image_url) < 20):
-                image_url = None
+        img = item.select_one("img.s-image")
+        image_url = img.get("src") if img else None
 
-        # Price
-        price_el = (
-            item.select_one("[data-testid='item-price']") or
-            item.select_one("[class*='price']") or
-            item.select_one("span[aria-label*='$']")
-        )
-        price_str = price_el.get_text(strip=True) if price_el else ""
-        # Also search for $ strings in item text
-        if not price_str:
-            price_str = next((t.strip() for t in item.find_all(string=re.compile(r'\$\d'))), "")
-        price, price_type = parse_price(price_str)
-        if price and price > 500:
-            continue
-        if not price:
-            continue  # skip items without a visible price
-
-        # Condition — Mercari shows "Like New", "Good", "Fair", etc.
-        cond_el = item.select_one("[class*='condition']") or item.select_one("[data-testid='item-condition']")
-        condition_raw = cond_el.get_text(strip=True).lower() if cond_el else ""
-        if "new" in condition_raw:
-            condition = "new"
-        elif any(x in condition_raw for x in ("good", "fair", "poor", "used", "like")):
+        # Condition — Amazon new/used
+        cond_el = item.select_one("[class*='a-color-secondary']")
+        cond_txt = cond_el.get_text(strip=True).lower() if cond_el else ""
+        if "used" in cond_txt:
             condition = "used"
+        elif "new" in cond_txt:
+            condition = "new"
         else:
-            condition = "not_specified"
+            condition = "new"  # Amazon default is new listings
 
-        # Seller
-        seller_el = item.select_one("[class*='seller']") or item.select_one("[data-testid*='seller']")
+        # Seller (sold by)
+        seller_el = item.select_one("[class*='a-row'] .a-size-small")
         seller = seller_el.get_text(strip=True) if seller_el else None
 
         category = infer_category(title)
@@ -351,10 +411,10 @@ def scrape_mercari(query: str) -> list:
         price_per_pin = round(price / quantity, 4) if quantity and price else None
 
         listings.append({
-            "source": "mercari",
+            "source": "amazon",
             "title": title,
             "price": price,
-            "price_type": price_type,
+            "price_type": "fixed",
             "image_url": image_url,
             "source_url": source_url,
             "condition": condition,
@@ -368,6 +428,7 @@ def scrape_mercari(query: str) -> list:
             "is_curated": 0,
         })
 
+    print(f"  → {len(listings)} after official-only filter", flush=True)
     return listings
 
 
@@ -422,13 +483,14 @@ def main():
 
     SCRAPERS = [
         ("ebay", scrape_ebay),
-        ("mercari", scrape_mercari),
+        ("amazon", scrape_amazon),
     ]
 
     try:
         for source_name, scrape_fn in SCRAPERS:
             print(f"\n=== {source_name.upper()} ===", flush=True)
-            for query in SEARCH_TERMS:
+            terms = AMAZON_SEARCH_TERMS if source_name == "amazon" else SEARCH_TERMS
+            for query in terms:
                 listings = scrape_fn(query)
                 print(f"  → {len(listings)} listings parsed", flush=True)
                 for l in listings:
