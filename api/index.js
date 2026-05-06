@@ -12,7 +12,7 @@ db.pragma('journal_mode = WAL')
 
 const app = Fastify({ logger: false })
 
-// GET /api/listings?q=&category=&tag=&limit=&offset=&sort=
+// GET /api/listings?q=&category=&tag=&limit=&offset=&sort=&min_price=&max_price=
 app.get('/api/listings', async (req, reply) => {
   const {
     q = '',
@@ -21,27 +21,50 @@ app.get('/api/listings', async (req, reply) => {
     limit = 48,
     offset = 0,
     sort = 'scraped_at',
+    min_price,
+    max_price,
   } = req.query
 
   const lim = Math.min(Number(limit), 200)
   const off = Number(offset)
-  const validSort = ['price', 'scraped_at', 'title'].includes(sort) ? sort : 'scraped_at'
 
-  // tag filter: JSON array contains the tag value
+  const VALID_SORTS = {
+    price: 'price',
+    price_asc: 'price',
+    price_per_pin: 'price_per_pin',
+    price_per_pin_asc: 'price_per_pin',
+    scraped_at: 'scraped_at',
+    title: 'title',
+  }
+  const SORT_DIR = {
+    price: 'ASC',
+    price_asc: 'ASC',
+    price_per_pin: 'ASC',
+    price_per_pin_asc: 'ASC',
+    scraped_at: 'DESC',
+    title: 'ASC',
+  }
+  const sortCol = VALID_SORTS[sort] || 'scraped_at'
+  const sortDir = SORT_DIR[sort] || 'DESC'
+
   const tagClause = tag ? `AND (l.tags LIKE ? OR l.tags LIKE ? OR l.tags LIKE ? OR l.tags LIKE ?)` : ''
   const tagParams = tag ? [`["${tag}"]`, `["${tag}",%`, `%,"${tag}",%`, `%,"${tag}"]`] : []
-
   const catClause = category ? 'AND l.category = ?' : ''
   const catParam = category ? [category] : []
 
-  // Non-FTS equivalents (no l. prefix)
   const tagClauseNL = tag ? `AND (tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)` : ''
   const catClauseNL = category ? 'AND category = ?' : ''
+
+  const priceMin = min_price != null ? Number(min_price) : null
+  const priceMax = max_price != null ? Number(max_price) : null
+  const priceMinClause = priceMin != null ? 'AND price >= ?' : ''
+  const priceMaxClause = priceMax != null ? 'AND price <= ?' : ''
+  const priceMinParam = priceMin != null ? [priceMin] : []
+  const priceMaxParam = priceMax != null ? [priceMax] : []
 
   let rows, total
 
   if (q) {
-    // FTS search
     rows = db.prepare(`
       SELECT l.* FROM listings l
       JOIN listings_fts f ON l.id = f.rowid
@@ -49,9 +72,11 @@ app.get('/api/listings', async (req, reply) => {
         AND l.is_active = 1
         ${catClause}
         ${tagClause}
-      ORDER BY l.${validSort} DESC
+        ${priceMinClause}
+        ${priceMaxClause}
+      ORDER BY l.${sortCol} ${sortDir}
       LIMIT ? OFFSET ?
-    `).all(...[`${q}*`, ...catParam, ...tagParams, lim, off])
+    `).all(...[`${q}*`, ...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam, lim, off])
 
     total = db.prepare(`
       SELECT COUNT(*) AS cnt FROM listings l
@@ -60,26 +85,31 @@ app.get('/api/listings', async (req, reply) => {
         AND l.is_active = 1
         ${catClause}
         ${tagClause}
-    `).get(...[`${q}*`, ...catParam, ...tagParams]).cnt
+        ${priceMinClause}
+        ${priceMaxClause}
+    `).get(...[`${q}*`, ...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam]).cnt
   } else {
     rows = db.prepare(`
       SELECT * FROM listings
       WHERE is_active = 1
         ${catClauseNL}
         ${tagClauseNL}
-      ORDER BY ${validSort} DESC
+        ${priceMinClause}
+        ${priceMaxClause}
+      ORDER BY ${sortCol} ${sortDir}
       LIMIT ? OFFSET ?
-    `).all(...[...catParam, ...tagParams, lim, off])
+    `).all(...[...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam, lim, off])
 
     total = db.prepare(`
       SELECT COUNT(*) AS cnt FROM listings
       WHERE is_active = 1
         ${catClauseNL}
         ${tagClauseNL}
-    `).get(...[...catParam, ...tagParams]).cnt
+        ${priceMinClause}
+        ${priceMaxClause}
+    `).get(...[...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam]).cnt
   }
 
-  // Parse tags JSON
   const listings = rows.map(r => ({
     ...r,
     tags: (() => { try { return JSON.parse(r.tags) } catch { return [] } })()
@@ -102,7 +132,13 @@ app.get('/api/categories', async () => {
 app.get('/api/stats', async () => {
   const total = db.prepare("SELECT COUNT(*) AS n FROM listings WHERE is_active=1").get().n
   const lastRun = db.prepare("SELECT finished_at, new_count, updated_count FROM scrape_runs ORDER BY id DESC LIMIT 1").get()
-  return { total_listings: total, last_scrape: lastRun || null }
+  const bestValue = db.prepare(`
+    SELECT title, price, quantity, price_per_pin, image_url, source_url
+    FROM listings
+    WHERE is_active=1 AND price_per_pin IS NOT NULL AND quantity >= 10
+    ORDER BY price_per_pin ASC LIMIT 3
+  `).all()
+  return { total_listings: total, last_scrape: lastRun || null, best_value: bestValue }
 })
 
 // Health
