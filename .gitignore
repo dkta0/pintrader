@@ -1,0 +1,5 @@
+api/node_modules/
+scraper/__pycache__/
+db/pins.db-shm
+db/pins.db-wal
+*.pyc
