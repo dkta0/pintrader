@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PinTrader — Disney Pin Collectors</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #c9a84c;
+      --gold-light: #e8c97a;
+      --gold-dim: #8a6f2e;
+      --ink: #0f0e0c;
+      --surface: #1a1814;
+      --surface-2: #242118;
+      --surface-3: #2e2b22;
+      --border: #3a3520;
+      --muted: #7a7360;
+      --text: #e8e0cc;
+      --text-dim: #9e9480;
+      --red: #c0392b;
+      --green: #27ae60;
+      --radius: 8px;
+      --radius-lg: 14px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--ink);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      height: 64px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .logo span { color: var(--text-dim); font-weight: 400; }
+
+    nav {
+      display: flex;
+      gap: 4px;
+      flex: 1;
+    }
+    nav a {
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+    }
+    nav a:hover, nav a.active { color: var(--text); background: var(--surface-3); }
+    nav a.active { color: var(--gold); }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    /* ── Search bar ── */
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      max-width: 480px;
+    }
+    .search-wrap input {
+      width: 100%;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 8px 14px 8px 38px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .search-wrap input:focus { border-color: var(--gold-dim); }
+    .search-wrap .icon-search {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: filter 0.15s, opacity 0.15s;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn:hover { filter: brightness(1.12); }
+    .btn-gold { background: var(--gold); color: var(--ink); }
+    .btn-outline { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+    .btn-outline:hover { color: var(--text); border-color: var(--gold-dim); }
+    .btn-sm { padding: 5px 12px; font-size: 13px; }
+    .btn-trade { background: #2563eb; color: #fff; }
+    .btn-buy  { background: var(--green); color: #fff; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(160deg, #1a1814 0%, #0f0e0c 50%, #1a1610 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 64px 24px 48px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--gold-dim);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+    .hero h1 em { color: var(--gold); font-style: normal; }
+    .hero p {
+      color: var(--text-dim);
+      font-size: 16px;
+      max-width: 520px;
+      margin: 0 auto 32px;
+    }
+
+    .hero-search {
+      max-width: 560px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+    }
+    .hero-search input {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 15px;
+      padding: 12px 18px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .hero-search input::placeholder { color: var(--muted); }
+    .hero-search input:focus { border-color: var(--gold); }
+    .hero-search .btn { padding: 12px 24px; font-size: 15px; }
+
+    /* ── Layout ── */
+    .page { max-width: 1280px; margin: 0 auto; padding: 40px 24px; }
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .section-link { font-size: 13px; color: var(--gold-dim); text-decoration: none; }
+    .section-link:hover { color: var(--gold); }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+    .filter-chip {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-dim);
+      font-size: 13px;
+      padding: 5px 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .filter-chip:hover { border-color: var(--gold-dim); color: var(--text); }
+    .filter-chip.active { background: var(--gold); color: var(--ink); border-color: var(--gold); font-weight: 600; }
+
+    /* ── Pin grid ── */
+    .pin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .pin-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.15s;
+      cursor: pointer;
+    }
+    .pin-card:hover {
+      border-color: var(--gold-dim);
+      transform: translateY(-2px);
+    }
+
+    .pin-img {
+      aspect-ratio: 1;
+      background: var(--surface-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .pin-img::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 30% 25%, rgba(201,168,76,0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .pin-badge {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+    .pin-badge.le { color: var(--gold); border-color: var(--gold-dim); }
+    .pin-badge.htf { color: #e67e22; border-color: #7a3f10; }
+    .pin-badge.new { color: var(--green); border-color: #145a32; }
+
+    .pin-body { padding: 14px; }
+    .pin-name {
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--text);
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+    .pin-meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .pin-price-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .pin-price {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--gold);
+    }
+    .pin-price.trade-only { font-size: 13px; color: var(--text-dim); font-weight: 400; }
+
+    .pin-actions { display: flex; gap: 6px; }
+
+    /* ── Stats row ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .stat-value {
+      font-family: 'Cinzel', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--gold);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-label { font-size: 13px; color: var(--muted); }
+
+    /* ── Tag cloud ── */
+    .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 48px; }
+    .tag {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 13px;
+      color: var(--text-dim);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .tag:hover { border-color: var(--gold-dim); color: var(--gold); }
+
+    /* ── Modal overlay ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      max-width: 520px;
+      width: 100%;
+      padding: 32px;
+      transform: translateY(12px);
+      transition: transform 0.2s;
+    }
+    .modal-overlay.open .modal { transform: translateY(0); }
+    .modal-title {
+      font-family: 'Cinzel', serif;
+      font-size: 20px;
+      color: var(--gold);
+      margin-bottom: 8px;
+    }
+    .modal-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+    .modal-body { display: flex; gap: 24px; align-items: flex-start; }
+    .modal-pin-img { font-size: 80px; flex-shrink: 0; }
+    .modal-details { flex: 1; }
+    .modal-detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .modal-detail-row:last-child { border-bottom: none; }
+    .modal-detail-label { color: var(--muted); }
+    .modal-detail-value { color: var(--text); font-weight: 500; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+    .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+    .modal-close:hover { color: var(--text); background: var(--surface-3); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      color: var(--text);
+      z-index: 300;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    footer a { color: var(--gold-dim); text-decoration: none; }
+    footer a:hover { color: var(--gold); }
+
+    @media (max-width: 640px) {
+      header { gap: 12px; }
+      nav { display: none; }
+      .hero { padding: 40px 16px 32px; }
+      .hero-search { flex-direction: column; }
+      .pin-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+      .modal-body { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="#">Pin<span>Trader</span></a>
+  <nav>
+    <a href="#" class="active">Browse</a>
+  </nav>
+  <div class="header-actions">
+    <div class="search-wrap">
+      <svg class="icon-search" width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input type="text" id="header-search" placeholder="Search pins…" autocomplete="off" />
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <p class="hero-eyebrow">The collector's marketplace</p>
+  <h1>Browse &amp; Discover<br><em>Disney Pins</em></h1>
+  <p>Live eBay listings for Disney pin collectors — limited editions, park exclusives, and hard-to-find gems. Updated weekly.</p>
+  <div class="hero-search">
+    <input type="text" id="hero-search" placeholder="Search by character, series, year, or park…" autocomplete="off" />
+    <button class="btn btn-gold" onclick="doSearch()">Search</button>
+  </div>
+</section>
+
+<main class="page">
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-value" id="stat-listings">—</div><div class="stat-label">Pins listed</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-updated">—</div><div class="stat-label">Last updated</div></div>
+  </div>
+
+  <div class="section-header">
+    <h2 class="section-title">Browse Pins</h2>
+    <a href="#" class="section-link">View all →</a>
+  </div>
+
+  <div class="filter-bar" id="filter-bar">
+    <div class="filter-chip active" data-filter="all">All</div>
+    <div class="filter-chip" data-filter-tag="limited">Limited Edition</div>
+    <div class="filter-chip" data-filter-tag="htf">Hard to Find</div>
+    <div class="filter-chip" data-filter-cat="castle">Castles</div>
+    <div class="filter-chip" data-filter-cat="princess">Princesses</div>
+    <div class="filter-chip" data-filter-cat="villain">Villains</div>
+    <div class="filter-chip" data-filter-cat="attraction">Park Attractions</div>
+    <div class="filter-chip" data-filter-cat="holiday">Holiday</div>
+  </div>
+
+  <div class="pin-grid" id="pin-grid"></div>
+
+  <div class="section-header" style="margin-top:56px;">
+    <h2 class="section-title">Browse by Series</h2>
+  </div>
+  <div class="tag-cloud">
+    <a class="tag" href="#" onclick="tagSearch('Haunted Mansion');return false">Haunted Mansion</a>
+    <a class="tag" href="#" onclick="tagSearch('Space Mountain');return false">Space Mountain</a>
+    <a class="tag" href="#" onclick="tagSearch('Pirates of the Caribbean');return false">Pirates of the Caribbean</a>
+    <a class="tag" href="#" onclick="tagSearch('Mickey');return false">Mickey &amp; Friends</a>
+    <a class="tag" href="#" onclick="tagSearch('princess');return false">Princesses</a>
+    <a class="tag" href="#" onclick="tagSearch('villain');return false">Villains</a>
+    <a class="tag" href="#" onclick="tagSearch('EPCOT');return false">EPCOT World Showcase</a>
+    <a class="tag" href="#" onclick="tagSearch('Animal Kingdom');return false">Animal Kingdom</a>
+    <a class="tag" href="#" onclick="tagSearch('Star Wars');return false">Star Wars Galaxy's Edge</a>
+    <a class="tag" href="#" onclick="tagSearch('Marvel');return false">Marvel</a>
+    <a class="tag" href="#" onclick="tagSearch('Pixar');return false">Pixar</a>
+    <a class="tag" href="#" onclick="tagSearch('50th');return false">Walt Disney World 50th</a>
+    <a class="tag" href="#" onclick="tagSearch('70th');return false">Disneyland 70th</a>
+    <a class="tag" href="#" onclick="tagSearch('holiday');return false">Holiday &amp; Seasonal</a>
+    <a class="tag" href="#" onclick="tagSearch('mystery');return false">Mystery Pins</a>
+    <a class="tag" href="#" onclick="tagSearch('D23');return false">D23 Exclusive</a>
+    <a class="tag" href="#" onclick="tagSearch('artist');return false">Artist Series</a>
+  </div>
+
+</main>
+
+<footer>
+  <p>PinTrader &mdash; A community marketplace for Disney pin collectors.</p>
+  <p style="margin-top:8px;">Not affiliated with The Walt Disney Company. &nbsp;|&nbsp; <a href="#">Terms</a> &nbsp;|&nbsp; <a href="#">Privacy</a></p>
+</footer>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" style="position:relative;" id="modal">
+    <button class="modal-close" onclick="closeModalDirect()">✕</button>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="modal-body">
+      <div class="modal-pin-img" id="modal-emoji"></div>
+      <div class="modal-details" id="modal-details"></div>
+    </div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──
+let activeFilterCat = '';
+let activeFilterTag = '';
+let searchQuery = '';
+let offset = 0;
+const LIMIT = 48;
+let totalListings = 0;
+let currentListings = [];
+let debounceTimer;
+
+// ── Category emoji fallback map ──
+const CAT_EMOJI = {
+  princess: '👸', villain: '🧌', attraction: '🎢', castle: '🏰',
+  classic: '🐭', 'star-wars': '⚔️', marvel: '🦸', pixar: '🎬',
+  holiday: '🎄', epcot: '🌍', limited: '🌟', other: '📌'
+};
+
+function pinEmoji(p) {
+  if (p.image_url) return null; // real image takes precedence
+  return CAT_EMOJI[p.category] || '📌';
+}
+
+function badgeFor(tags) {
+  if (!tags) return null;
+  const t = Array.isArray(tags) ? tags : JSON.parse(tags || '[]');
+  if (t.includes('limited')) return { cls: 'le', label: 'LE' };
+  if (t.includes('htf')) return { cls: 'htf', label: 'HTF' };
+  return null;
+}
+
+// ── Fetch ──
+async function fetchListings() {
+  const grid = document.getElementById('pin-grid');
+  grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;padding:40px 0;text-align:center;">Loading…</p>';
+
+  const params = new URLSearchParams({ limit: LIMIT, offset });
+  if (searchQuery) params.set('q', searchQuery);
+  if (activeFilterCat) params.set('category', activeFilterCat);
+  if (activeFilterTag) params.set('tag', activeFilterTag);
+
+  try {
+    const res = await fetch(`/api/listings?${params}`);
+    const data = await res.json();
+    currentListings = data.listings || [];
+    totalListings = data.total || 0;
+    renderPins(currentListings);
+    updateStats();
+  } catch (e) {
+    grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;padding:40px 0;text-align:center;">Could not load listings. Try again shortly.</p>';
+  }
+}
+
+async function updateStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    const listings = document.getElementById('stat-listings');
+    const updated = document.getElementById('stat-updated');
+    if (listings && data.total_listings != null)
+      listings.textContent = data.total_listings.toLocaleString();
+    if (updated && data.last_scrape?.finished_at) {
+      const d = new Date(data.last_scrape.finished_at);
+      updated.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  } catch {}
+}
+
+// ── Render ──
+function renderPins(pins) {
+  const grid = document.getElementById('pin-grid');
+
+  if (!pins.length) {
+    grid.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;padding:40px 0;text-align:center;">No pins found. Try a different search or filter.</p>';
+    return;
+  }
+
+  grid.innerHTML = pins.map((p, i) => {
+    const badge = badgeFor(p.tags);
+    const emoji = pinEmoji(p);
+    const hasImg = !!p.image_url;
+    const price = p.price != null ? `<span class="pin-price">$${p.price.toFixed(2)}</span>` : '<span class="pin-price trade-only">See listing</span>';
+
+    return `
+    <div class="pin-card" onclick="openPin(${i})">
+      <div class="pin-img" style="${hasImg ? `background:var(--surface-3)` : ''}">
+        ${hasImg
+          ? `<img src="${p.image_url}" alt="${p.title}" style="width:100%;height:100%;object-fit:contain;padding:8px;" loading="lazy" onerror="this.style.display='none';this.parentNode.insertAdjacentHTML('afterbegin','${CAT_EMOJI[p.category]||'📌'}')">`
+          : emoji}
+        ${badge ? `<span class="pin-badge ${badge.cls}">${badge.label}</span>` : ''}
+      </div>
+      <div class="pin-body">
+        <div class="pin-name">${escHtml(p.title)}</div>
+        <div class="pin-meta">${escHtml(p.category || '')} · ${escHtml(p.condition || '')}</div>
+        <div class="pin-price-row">
+          ${price}
+          <div class="pin-actions">
+            <a class="btn btn-buy btn-sm" href="${p.source_url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View →</a>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Filters ──
+document.getElementById('filter-bar').addEventListener('click', e => {
+  const chip = e.target.closest('.filter-chip');
+  if (!chip) return;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  activeFilterCat = chip.dataset.filterCat || '';
+  activeFilterTag = chip.dataset.filterTag || '';
+  offset = 0;
+  fetchListings();
+});
+
+// ── Search ──
+function doSearch() {
+  const heroVal = document.getElementById('hero-search').value.trim();
+  const headerVal = document.getElementById('header-search').value.trim();
+  searchQuery = heroVal || headerVal;
+  offset = 0;
+  fetchListings();
+}
+
+['hero-search','header-search'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+  el.addEventListener('input', e => {
+    // sync both inputs
+    const other = id === 'hero-search' ? 'header-search' : 'hero-search';
+    document.getElementById(other).value = e.target.value;
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => { searchQuery = e.target.value.trim(); offset = 0; fetchListings(); }, 350);
+  });
+});
+
+// ── Tag cloud search ──
+function tagSearch(q) {
+  searchQuery = q;
+  activeFilterCat = '';
+  activeFilterTag = '';
+  document.getElementById('hero-search').value = q;
+  document.getElementById('header-search').value = q;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelector('.filter-chip[data-filter="all"]').classList.add('active');
+  offset = 0;
+  fetchListings();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Modal ──
+function openPin(idx) {
+  const p = currentListings[idx];
+  if (!p) return;
+  const badge = badgeFor(p.tags);
+  const emoji = pinEmoji(p);
+
+  document.getElementById('modal-title').textContent = p.title;
+  document.getElementById('modal-sub').textContent = `${p.category || ''} · ${p.condition || ''}`;
+
+  const imgEl = document.getElementById('modal-emoji');
+  if (p.image_url) {
+    imgEl.innerHTML = `<img src="${p.image_url}" alt="${escHtml(p.title)}" style="max-width:120px;max-height:120px;object-fit:contain;border-radius:8px;" onerror="this.outerHTML='${CAT_EMOJI[p.category]||'📌'}'">`;
+  } else {
+    imgEl.textContent = emoji;
+  }
+
+  document.getElementById('modal-details').innerHTML = `
+    <div class="modal-detail-row"><span class="modal-detail-label">Price</span><span class="modal-detail-value">${p.price != null ? '$'+p.price.toFixed(2) : 'See listing'}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-label">Condition</span><span class="modal-detail-value">${escHtml(p.condition||'–')}</span></div>
+    <div class="modal-detail-row"><span class="modal-detail-label">Category</span><span class="modal-detail-value">${escHtml(p.category||'–')}</span></div>
+    ${p.seller ? `<div class="modal-detail-row"><span class="modal-detail-label">Seller</span><span class="modal-detail-value">${escHtml(p.seller)}</span></div>` : ''}
+    ${badge ? `<div class="modal-detail-row"><span class="modal-detail-label">Status</span><span class="modal-detail-value" style="color:var(--gold)">${badge.label === 'LE' ? 'Limited Edition' : 'Hard to Find'}</span></div>` : ''}
+  `;
+
+  document.getElementById('modal-actions').innerHTML = `
+    <a class="btn btn-buy" href="${p.source_url}" target="_blank" rel="noopener">View on eBay →</a>
+    <button class="btn btn-outline" onclick="toast('Watchlist coming soon!');closeModalDirect()">Watch</button>
+  `;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(e) { if (e.target === document.getElementById('modal-overlay')) closeModalDirect(); }
+function closeModalDirect() { document.getElementById('modal-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModalDirect(); });
+
+// ── Toast ──
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── Boot ──
+fetchListings();
+</script>
+</body>
+</html>
