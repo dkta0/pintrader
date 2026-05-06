@@ -12,12 +12,13 @@ db.pragma('journal_mode = WAL')
 
 const app = Fastify({ logger: false })
 
-// GET /api/listings?q=&category=&tag=&limit=&offset=&sort=&min_price=&max_price=
+// GET /api/listings?q=&category=&tag=&source=&limit=&offset=&sort=&min_price=&max_price=
 app.get('/api/listings', async (req, reply) => {
   const {
     q = '',
     category = '',
     tag = '',
+    source = '',
     limit = 48,
     offset = 0,
     sort = 'scraped_at',
@@ -51,9 +52,12 @@ app.get('/api/listings', async (req, reply) => {
   const tagParams = tag ? [`["${tag}"]`, `["${tag}",%`, `%,"${tag}",%`, `%,"${tag}"]`] : []
   const catClause = category ? 'AND l.category = ?' : ''
   const catParam = category ? [category] : []
+  const srcClause = source ? 'AND l.source = ?' : ''
+  const srcParam = source ? [source] : []
 
   const tagClauseNL = tag ? `AND (tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)` : ''
   const catClauseNL = category ? 'AND category = ?' : ''
+  const srcClauseNL = source ? 'AND source = ?' : ''
 
   const priceMin = min_price != null ? Number(min_price) : null
   const priceMax = max_price != null ? Number(max_price) : null
@@ -72,11 +76,12 @@ app.get('/api/listings', async (req, reply) => {
         AND l.is_active = 1
         ${catClause}
         ${tagClause}
+        ${srcClause}
         ${priceMinClause}
         ${priceMaxClause}
       ORDER BY l.${sortCol} ${sortDir}
       LIMIT ? OFFSET ?
-    `).all(...[`${q}*`, ...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam, lim, off])
+    `).all(...[`${q}*`, ...catParam, ...tagParams, ...srcParam, ...priceMinParam, ...priceMaxParam, lim, off])
 
     total = db.prepare(`
       SELECT COUNT(*) AS cnt FROM listings l
@@ -85,29 +90,32 @@ app.get('/api/listings', async (req, reply) => {
         AND l.is_active = 1
         ${catClause}
         ${tagClause}
+        ${srcClause}
         ${priceMinClause}
         ${priceMaxClause}
-    `).get(...[`${q}*`, ...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam]).cnt
+    `).get(...[`${q}*`, ...catParam, ...tagParams, ...srcParam, ...priceMinParam, ...priceMaxParam]).cnt
   } else {
     rows = db.prepare(`
       SELECT * FROM listings
       WHERE is_active = 1
         ${catClauseNL}
         ${tagClauseNL}
+        ${srcClauseNL}
         ${priceMinClause}
         ${priceMaxClause}
       ORDER BY ${sortCol} ${sortDir}
       LIMIT ? OFFSET ?
-    `).all(...[...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam, lim, off])
+    `).all(...[...catParam, ...tagParams, ...srcParam, ...priceMinParam, ...priceMaxParam, lim, off])
 
     total = db.prepare(`
       SELECT COUNT(*) AS cnt FROM listings
       WHERE is_active = 1
         ${catClauseNL}
         ${tagClauseNL}
+        ${srcClauseNL}
         ${priceMinClause}
         ${priceMaxClause}
-    `).get(...[...catParam, ...tagParams, ...priceMinParam, ...priceMaxParam]).cnt
+    `).get(...[...catParam, ...tagParams, ...srcParam, ...priceMinParam, ...priceMaxParam]).cnt
   }
 
   const listings = rows.map(r => ({
@@ -116,6 +124,16 @@ app.get('/api/listings', async (req, reply) => {
   }))
 
   return { listings, total, limit: lim, offset: off }
+})
+
+// GET /api/sources
+app.get('/api/sources', async () => {
+  const rows = db.prepare(`
+    SELECT source, COUNT(*) AS count
+    FROM listings WHERE is_active = 1
+    GROUP BY source ORDER BY count DESC
+  `).all()
+  return { sources: rows }
 })
 
 // GET /api/categories
